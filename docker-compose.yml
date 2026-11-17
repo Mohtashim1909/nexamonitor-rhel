@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: nexamonitor-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:////data/nexamonitor.db
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - DOCKER_TIMEOUT=5
+      - SECRET_KEY=nexamonitor-prod-secret-change-in-env
+      - CORS_ORIGINS=["http://localhost:3000","http://localhost:5173","http://localhost:80","http://localhost"]
+      - DEBUG=False
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - nexamonitor_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: nexamonitor-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+      - "5173:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  nexamonitor_data:
+    name: nexamonitor_storage
